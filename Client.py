@@ -43,37 +43,37 @@ class Client:
 	def createWidgets(self):
 		"""Build GUI."""
 		# Create Setup button
-		self.setup = Button(self.master, width=16, padx=3, pady=3)
-		self.setup["text"] = "Setup"
-		self.setup["command"] = self.setupMovie
-		self.setup.grid(row=1, column=0, padx=2, pady=2)
+		# self.setup = Button(self.master, width=16, padx=3, pady=3)
+		# self.setup["text"] = "Setup"
+		# self.setup["command"] = self.setupMovie
+		# self.setup.grid(row=1, column=0, padx=2, pady=2)
 		
 		# Create Play button		
-		self.start = Button(self.master, width=16, padx=3, pady=3)
+		self.start = Button(self.master, width=20, padx=3, pady=3)
 		self.start["text"] = "Play"
 		self.start["command"] = self.playMovie
-		self.start.grid(row=1, column=1, padx=2, pady=2)
+		self.start.grid(row=1, column=0, padx=2, pady=2)
 		
 		# Create Pause button			
-		self.pause = Button(self.master, width=16, padx=3, pady=3)
+		self.pause = Button(self.master, width=20, padx=3, pady=3)
 		self.pause["text"] = "Pause"
 		self.pause["command"] = self.pauseMovie
-		self.pause.grid(row=1, column=2, padx=2, pady=2)
+		self.pause.grid(row=1, column=1, padx=2, pady=2)
 		
 		# Create Teardown button
-		self.teardown = Button(self.master, width=16, padx=3, pady=3)
+		self.teardown = Button(self.master, width=20, padx=3, pady=3)
 		self.teardown["text"] = "Teardown"
 		self.teardown["command"] =  self.exitClient
-		self.teardown.grid(row=1, column=3, padx=2, pady=2)
+		self.teardown.grid(row=1, column=2, padx=2, pady=2)
 
-		self.describe = Button(self.master, width=16, padx=3, pady=3)
+		self.describe = Button(self.master, width=20, padx=3, pady=3)
 		self.describe["text"] = "Describe"
 		self.describe["command"] =  self.describeSession
-		self.describe.grid(row=1, column=4, padx=2, pady=2)
+		self.describe.grid(row=1, column=3, padx=2, pady=2)
 		
 		# Create a label to display the movie
 		self.label = Label(self.master, height=19)
-		self.label.grid(row=0, column=0, columnspan=5, sticky=W+E+N+S, padx=5, pady=5) 
+		self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5) 
 	
 	def setupMovie(self):
 		"""Setup button handler."""
@@ -93,6 +93,13 @@ class Client:
 	
 	def playMovie(self):
 		"""Play button handler."""
+
+		wait = True
+		if self.state == self.INIT:
+			self.setupEvent = threading.Event()
+			self.sendRtspRequest(self.SETUP)
+			wait = self.setupEvent.wait(timeout=0.5)
+
 		if self.state == self.READY:
 			# Create a new thread to listen for RTP packets
 			threading.Thread(target=self.listenRtp).start()
