@@ -21,6 +21,8 @@ class Client:
 	PAUSE = 2
 	TEARDOWN = 3
 	DESCRIBE = 4
+	FORWARD = 5
+	BACKWARD = 6
 	
 	# Initiation..
 	def __init__(self, master, serveraddr, serverport, rtpport, filename):
@@ -49,27 +51,37 @@ class Client:
 		# self.setup.grid(row=1, column=0, padx=2, pady=2)
 		
 		# Create Play button		
-		self.start = Button(self.master, width=20, padx=3, pady=3)
+		self.start = Button(self.master, width=13, padx=3, pady=3)
 		self.start["text"] = "Play"
 		self.start["command"] = self.playMovie
 		self.start.grid(row=1, column=0, padx=2, pady=2)
 		
 		# Create Pause button			
-		self.pause = Button(self.master, width=20, padx=3, pady=3)
+		self.pause = Button(self.master, width=13, padx=3, pady=3)
 		self.pause["text"] = "Pause"
 		self.pause["command"] = self.pauseMovie
 		self.pause.grid(row=1, column=1, padx=2, pady=2)
 		
 		# Create Teardown button
-		self.teardown = Button(self.master, width=20, padx=3, pady=3)
+		self.teardown = Button(self.master, width=13, padx=3, pady=3)
 		self.teardown["text"] = "Teardown"
 		self.teardown["command"] =  self.exitClient
 		self.teardown.grid(row=1, column=2, padx=2, pady=2)
 
-		self.describe = Button(self.master, width=20, padx=3, pady=3)
+		self.describe = Button(self.master, width=13, padx=3, pady=3)
 		self.describe["text"] = "Describe"
 		self.describe["command"] =  self.describeSession
 		self.describe.grid(row=1, column=3, padx=2, pady=2)
+
+		self.describe = Button(self.master, width=13, padx=3, pady=3)
+		self.describe["text"] = "Backward"
+		self.describe["command"] =  self.backWardSession
+		self.describe.grid(row=1, column=4, padx=2, pady=2)
+
+		self.describe = Button(self.master, width=13, padx=3, pady=3)
+		self.describe["text"] = "Forward"
+		self.describe["command"] =  self.forwardSession
+		self.describe.grid(row=1, column=5, padx=2, pady=2)
 		
 		# Create a label to display the movie
 		self.label = Label(self.master, height=19)
@@ -110,6 +122,14 @@ class Client:
 	def describeSession(self):
 		"""Describe button handler."""
 		self.sendRtspRequest(self.DESCRIBE)
+
+	def backWardSession(self):
+		"""Forward button handler."""
+		self.sendRtspRequest(self.BACKWARD)
+
+	def forwardSession(self):
+		"""Forward button handler."""
+		self.sendRtspRequest(self.FORWARD)
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
@@ -123,10 +143,11 @@ class Client:
 					#make the packet receive has the class type of Packet
 					currFrameNbr = rtpPacket.seqNum()
 					print("Current Seq Num: " + str(currFrameNbr))
-										
-					if currFrameNbr > self.frameNbr: # Discard the late packet
-						self.frameNbr = currFrameNbr
-						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+					
+					#if currFrameNbr > self.frameNbr: # Discard the late packet
+
+					self.frameNbr = currFrameNbr
+					self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
 						#this packet cop to cache
 						#ready to fast present
 			except:
@@ -210,7 +231,15 @@ class Client:
 			request = 'DESCRIBE ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(self.sessionId)
 			self.requestSent = self.DESCRIBE
 
+		elif requestCode == self.FORWARD:
+			self.rtspSeq += 1
+			request = 'FORWARD ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(self.sessionId)
+			self.requestSent = self.FORWARD
 
+		elif requestCode == self.BACKWARD:
+			self.rtspSeq += 1
+			request = 'BACKWARD ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(self.sessionId)
+			self.requestSent = self.FORWARD
 		else:
 			return
 
