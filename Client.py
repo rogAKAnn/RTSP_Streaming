@@ -3,6 +3,7 @@ import tkinter.messagebox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
 
+import time    
 
 #Run: init, create, connect server, listen RPT, send request and receive data socket, write frame
 from RtpPacket import RtpPacket
@@ -39,7 +40,12 @@ class Client:
 		self.teardownAcked = 0
 		self.connectToServer()
 		self.frameNbr = 0
-
+		self.expFrameNbr = 0
+		self.statPacketsLost = 0
+		self.statTotalBytes = 0
+		self.statTotalPlayTime = 0
+		self.startTime = 0
+		self.totalFrames = 0  
 	# Initiatio
 	# THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI 		
 	def createWidgets(self):
@@ -86,6 +92,11 @@ class Client:
 		# Create a label to display the movie
 		self.label = Label(self.master, height=19)
 		self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5) 
+		self.displays = []
+		for i in range(6):
+			DLabel = Label(self.master, height=1)
+			DLabel.grid(row=2 + i, column=0, columnspan=4,sticky=W,padx=5, pady=5) 
+			self.displays.append(DLabel)
 	
 	def setupMovie(self):
 		"""Setup button handler."""
@@ -130,37 +141,73 @@ class Client:
 	def forwardSession(self):
 		"""Forward button handler."""
 		self.sendRtspRequest(self.FORWARD)
-	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
 		while True:
 			try:
 				data = self.rtpSocket.recv(20480)
-				#this is packet recieve. 20480 is buffer size
+				# this is packet recieve. 20480 is buffer size
 				if data:
 					rtpPacket = RtpPacket()
 					rtpPacket.decode(data)
-					#make the packet receive has the class type of Packet
+				
+					# make the packet receive has the class type of Packet
+					self.expFrameNbr += 1 
+						
 					currFrameNbr = rtpPacket.seqNum()
 					print("Current Seq Num: " + str(currFrameNbr))
-					
-					#if currFrameNbr > self.frameNbr: # Discard the late packet
-
-					self.frameNbr = currFrameNbr
-					self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+											
+					if currFrameNbr > self.frameNbr: # Discard the late packet
+						self.frameNbr = currFrameNbr
+						payload = rtpPacket.getPayload()
+						self.updateMovie(self.writeFrame(payload))
 						#this packet cop to cache
 						#ready to fast present
+						self.totalFrames += 1
+					
+					# Compare expected frame number and gotten frame number
+					if self.expFrameNbr != currFrameNbr: 
+						self.statPacketsLost += 1
+						
+					# Calculate total data received 
+					payload_length = len(payload)
+					self.statTotalBytes += payload_length
+						
+					# Calculate total play time of the session
+					curTime = time.time()
+					self.statTotalPlayTime += curTime - self.startTime
+					self.operationTime = curTime - self.startTime
+					self.startTime = curTime
+
+					# Display the statistics about the session
+					self.displays[0]["text"] = 'Current frame: ' 
+					+ str(currFrameNbr)
+					self.displays[1]["text"] = 'Frame per second (fps): ' 
+					+ str(format(1/self.operationTime,".2f")) + '\t\tAverage: ' 
+					+ str(format(self.totalFrames/self.statTotalPlayTime,".2f"))
+					self.displays[2]["text"] = 'Data received: ' 
+					+ str(self.statTotalBytes) + ' bytes'
+					self.displays[3]["text"] = 'Data Rate: ' 
+					+ str(format(payload_length / self.operationTime,".2f")) 
+					+ ' bytes/s' + '\t\tAverage: ' 
+					+ str(format(self.statTotalBytes / self.statTotalPlayTime,".2f")) 
+					+ ' bytes/s'
+					self.displays[4]["text"] = 'Packets Lost: '   
+					+ str(self.statPacketsLost) + ' packets'
+					self.displays[5]["text"] = 'Packets Lost Rate: ' 
+					+ str(float(self.statPacketsLost / currFrameNbr)) 
 			except:
-				# Stop listening upon requesting PAUSE or TEARDOWN
+			# Stop listening upon requesting PAUSE or TEARDOWN
 				if self.playEvent.isSet(): 
 					break
-				
-				# Upon receiving ACK for TEARDOWN request,
-				# close the RTP socket
+			
+			# Upon receiving ACK for TEARDOWN request,
+			# close the RTP socket
 				if self.teardownAcked == 1:
 					self.rtpSocket.shutdown(socket.SHUT_RDWR)
 					self.rtpSocket.close()
-					break
+					break	
+	
 					
 	def writeFrame(self, data):
 		"""Write the received frame to a temp image file. Return the image file."""
